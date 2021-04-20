@@ -1,27 +1,69 @@
 #include <Arduino.h>
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
 
-#define SINRICPRO_OO                    // use SinricPro in object orientated mode (must be defined before including SinricPro.h)
-#include <SinricPro.h>                  // include SinricProSDK
-#include "MySwitch.h"                   // include our device
+#define SINRICPRO_OO // https://github.com/sinricpro/esp8266-esp32-sdk/tree/dev-oop !!
+#include <SinricPro.h>
+#include <SinricProSwitch.h>
 
-#include "credentials.h"                // rename "credentials-example.h" and change credentials to your need
+#define SSID                ""
+#define PASS                ""
 
-#define LED1_PIN    22                  // pin where LED1 is connected to
-#define LED2_PIN    23                  // pin where LED2 is connected to
+#define APP_KEY             ""
+#define APP_SECRET          ""
 
-#define BUTTON1_PIN 19                  // pin where pushbutton 1 is connected to
-#define BUTTON2_PIN 21                  // pin where pushbutton 2 is connected to
+#define RELAY_ID_1          ""
+#define RELAY_ID_2          ""
+#define RELAY_ID_3          ""
+#define RELAY_ID_4          ""  
 
-MySwitch mySwitch1(DEVICE_ID1, LED1_PIN, BUTTON1_PIN);  // create a new instance "mySwitch1" of class MySwitch and attach LED1_PIN and BUTTON1_PIN
-MySwitch mySwitch2(DEVICE_ID2, LED2_PIN, BUTTON2_PIN);  // create a new instance "mySwitch2" of class MySwitch and attach LED2_PIN and BUTTON2_PIN
+#define RELAY_PIN_1         D4
+#define RELAY_PIN_2         D5
+#define RELAY_PIN_3         D6
+#define RELAY_PIN_4         D7
+
+class Relay : public SinricProSwitch {
+  public:
+    Relay(const String &deviceId, int gpio) : SinricProSwitch(deviceId), gpio(gpio) { pinMode(gpio, OUTPUT); }
+  protected:
+
+    bool onPowerState(bool &state) override {
+      Serial.printf("Relay \"%s\" on gpio %d turned %s\r\n", deviceId.toString().c_str(), gpio, state? "on" : "off");
+      digitalWrite(gpio, state);
+      return true;
+    };
+
+    void loop() override { 
+      unsigned long currentMillis = millis();
+      if (currentMillis - lastMessage < 5000) return;
+      lastMessage = currentMillis;
+      Serial.printf("Hello from relay \"%s\" who controls gpio %d\r\n", deviceId.toString().c_str(), gpio);
+    }
+
+    int gpio;
+    unsigned long lastMessage;
+};
+
+// relays on stack
+Relay relay1_on_stack(RELAY_ID_1, RELAY_PIN_1);
+Relay relay2_on_stack(RELAY_ID_2, RELAY_PIN_2);
+
+// relay on heap
+Relay *relay3_on_heap = new Relay(RELAY_ID_3, RELAY_PIN_3);
+// relay 4 -> see setup!
 
 void setup() {
-  Serial.begin(115200);                 // only needed for debug messages
-  WiFi.begin(SSID, PASS);               // startup WiFi
-  SinricPro.begin(APP_KEY, APP_SECRET, SINRICPRO_SERVER_URL); // startup SinricPro
+  Serial.begin(115200);                                
+
+  WiFi.begin(SSID, PASS);
+  while (!WiFi.isConnected()) { yield(); }
+  Serial.printf("IP: %s\r\n", WiFi.localIP().toString().c_str());
+
+  // create a new relay on heap... and forget about it...but it will still remain on the heap and keep running ;)
+  new Relay(RELAY_ID_4, RELAY_PIN_4); 
+
+  SinricPro.begin(APP_KEY, APP_SECRET);
 }
 
 void loop() {
-  SinricPro.handle();                   // handle incoming requests and outgoing events
+  SinricPro.handle();
 }
