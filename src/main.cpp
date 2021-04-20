@@ -55,7 +55,10 @@ void setup() {
   Serial.begin(115200);                                
 
   WiFi.begin(SSID, PASS);
-  while (!WiFi.isConnected()) { yield(); }
+  while (!WiFi.isConnected()) { 
+    Serial.printf(".");
+    delay(100);
+  }
   Serial.printf("IP: %s\r\n", WiFi.localIP().toString().c_str());
 
   // create a new relay on heap... and forget about it...but it will still remain on the heap and keep running ;)
